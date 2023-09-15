@@ -1,6 +1,6 @@
 # App Preview
 
-![Alt text](image.png)
+<img src="image.png" height="607" width="300" >
 
 # Steps
 
