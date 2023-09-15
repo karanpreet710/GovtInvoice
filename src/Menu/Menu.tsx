@@ -139,7 +139,7 @@ const Menu: React.FC<{
           body: 'Please find the attachment',
           isHtml: false,
           attachments: [
-            `base64:${attachmentData}//${attachmentName}`,
+            `base64:${attachmentName}//${attachmentData}`,
           ],
         };
   
