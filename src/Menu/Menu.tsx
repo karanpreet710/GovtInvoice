@@ -6,6 +6,12 @@ import { Printer } from "@ionic-native/printer";
 import { IonActionSheet, IonAlert } from "@ionic/react";
 import { saveOutline, save, mail, print } from "ionicons/icons";
 import { EmailComposer } from '@ionic-native/email-composer';
+import { ref, uploadBytes, getStorage } from 'firebase/storage';
+import firebaseApp from '../firebase'; // Import your Firebase configuration
+import puppeteer from "puppeteer";
+
+// Create a storage reference
+const storage = getStorage(firebaseApp);
 
 const Menu: React.FC<{
   showM: boolean;
@@ -20,6 +26,7 @@ const Menu: React.FC<{
   const [showAlert3, setShowAlert3] = useState(false);
   const [showAlert4, setShowAlert4] = useState(false);
   const [showToast1, setShowToast1] = useState(false);
+  const [showSuccessAlert, setShowSuccessAlert] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
   /* Utility functions */
   const _validateName = async (filename) => {
@@ -191,6 +198,50 @@ const Menu: React.FC<{
     }
   };
 
+  const generateUniqueFileName = () => {
+    const timestamp = new Date().getTime(); // Get the current timestamp
+    const randomString = Math.random().toString(36).substring(2, 8); // Generate a random string
+    return `${timestamp}_${randomString}`;
+  };
+
+  async function convertHTMLtoPDF(htmlContent) {
+    // Launch a headless Chrome browser
+    const browser = await puppeteer.launch();
+  
+    try {
+      // Open a new page
+      const page = await browser.newPage();
+  
+      // Set the content of the page to your HTML content
+      await page.setContent(htmlContent);
+  
+      // Generate a PDF from the page
+      const pdfBuffer = await page.pdf({ format: 'A4' }); // Adjust the format as needed
+  
+      return pdfBuffer;
+    } finally {
+      // Close the browser when done
+      await browser.close();
+    }
+  }
+
+  const uploadToCloud = () => {
+    const fileContent = AppGeneral.getCurrentHTMLContent();
+    convertHTMLtoPDF(fileContent).then((pdfBuffer)=>{
+      const fileName = generateUniqueFileName();
+      const storagePath = 'pdfs/' + fileName + '.pdf';
+      const storageRef = ref(storage, storagePath);
+      uploadBytes(storageRef, pdfBuffer).then((snapshot) => {
+        console.log('File uploaded successfully:', snapshot);
+        setShowSuccessAlert(true);
+      }).catch((error) => {
+        console.error('Error uploading file:', error);
+      });
+    }).catch((error) => {
+      console.error('Error generating PDF:', error);
+    });
+  };
+
   return (
     <React.Fragment>
       <IonActionSheet
@@ -239,6 +290,14 @@ const Menu: React.FC<{
               console.log("Send as CSV clicked");
             },
           },
+          {
+            text: "Upload PDF to cloud", // Option to send as CSV
+            icon: mail,
+            handler: () => {
+              uploadToCloud();
+              console.log("Upload to cloud clicked");
+            },
+          }
         ]}
       />
       <IonAlert
@@ -291,6 +350,13 @@ const Menu: React.FC<{
           "</strong> saved successfully"
         }
         buttons={["Ok"]}
+      />
+      <IonAlert
+        isOpen={showSuccessAlert}
+        onDidDismiss={() => setShowSuccessAlert(false)}
+        header="Success"
+        message="File uploaded successfully."
+        buttons={['Ok']}
       />
       <IonToast
         animated
